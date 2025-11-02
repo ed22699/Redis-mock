@@ -84,25 +84,42 @@ public class RedisServerTest {
         // This test follows the "Basic SET/GET and Data Integrity" case from GEMINI.md.
 
         // 1. A client sends SET, expects "+OK"
-        List<String> setResponse = executeCommand("*3 $3 SET $3 key $5 hello ");
+        List<String> setResponse = executeCommand("*3\r\n$3\r\nSET\r\n$3\r\nkey\r\n$5\r\nhello\r\n");
         assertEquals(1, setResponse.size(), "SET command should return a single line response.");
         assertEquals("+OK", setResponse.get(0), "Response from first SET should be OK.");
 
         // 2. A different client sends GET, expects "$5" and "hello"
-        List<String> getResponse1 = executeCommand("*2 $3 GET $3 key ");
+        List<String> getResponse1 = executeCommand("*2\r\n$3\r\nGET\r\n$3\r\nkey\r\n");
         assertEquals(2, getResponse1.size(), "GET for 'key' should return a two-line bulk string response.");
         assertEquals("$5", getResponse1.get(0), "First line of GET response should be the length prefix '$5'.");
         assertEquals("hello", getResponse1.get(1), "Second line of GET response should be the value 'hello'.");
 
         // 3. The first client (or another new client) updates the key
-        List<String> setResponse2 = executeCommand("*3 $3 SET $3 key $5 world ");
+        List<String> setResponse2 = executeCommand("*3\r\n$3\r\nSET\r\n$3\r\nkey\r\n$5\r\nworld\r\n");
         assertEquals(1, setResponse2.size(), "Second SET command should also return a single line response.");
         assertEquals("+OK", setResponse2.get(0), "Response from second SET should be OK.");
 
         // 4. Another client fetches the updated value, expects "$5" and "world"
-        List<String> getResponse2 = executeCommand("*2 $3 GET $3 key ");
+        List<String> getResponse2 = executeCommand("*2\r\n$3\r\nGET\r\n$3\r\nkey\r\n");
         assertEquals(2, getResponse2.size(), "Second GET for 'key' should return a two-line bulk string response.");
         assertEquals("$5", getResponse2.get(0), "First line of second GET response should be the length prefix '$5'.");
         assertEquals("world", getResponse2.get(1), "Second line of second GET response should be the updated value 'world'.");
+    }
+
+    @Test
+    @DisplayName("Test PING command with and without arguments")
+    public void testPingCommand() {
+        // 1. Test PING with no arguments, expects "+PONG"
+        List<String> pongResponse = executeCommand("*1\r\n$4\r\nPING\r\n");
+        assertEquals(1, pongResponse.size(), "PING command should return a single line response.");
+        assertEquals("+PONG", pongResponse.get(0), "Response from PING should be PONG.");
+
+        // 2. Test PING with an argument, expects a bulk string response with the argument
+        String message = "hello world";
+        String pingCommand = String.format("*2\r\n$4\r\nPING\r\n$%d\r\n%s\r\n", message.length(), message);
+        List<String> echoResponse = executeCommand(pingCommand);
+        assertEquals(2, echoResponse.size(), "PING with argument should return a two-line bulk string response.");
+        assertEquals(String.format("$%d", message.length()), echoResponse.get(0), "First line of PING response should be the length prefix.");
+        assertEquals(message, echoResponse.get(1), "Second line of PING response should be the echoed message.");
     }
 }

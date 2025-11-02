@@ -33,42 +33,43 @@ public class RedisServer {
 
     /**
      * Establishes a connection between an individual client and the server, upon this connection
-     * the server listens for all incoming commands (currently GET and SET), reacting appropriately
+     * the server listens for all incoming commands (currently GET, SET and PING), reacting appropriately
      * @param clientSocket The unique connection between a specific client and the server
      */
     private void handleClient(Socket clientSocket) {
         try (InputStream in = clientSocket.getInputStream();
              OutputStream out = clientSocket.getOutputStream()) {
 
-            byte[] buffer = new byte[1024];
-            int bytesRead = in.read(buffer);
-            String request = new String(buffer, 0, bytesRead);
+            Object decoded = RESPParser.decode(in);
+            if (decoded instanceof Object[] decodedArray) {
+                String command = (String) decodedArray[0];
 
-            String[] parts = request.split(" +");
-            String command = parts[2];
-            
-            String key;
-            String value;
-            switch (command.toUpperCase()) {
-                case "SET":
-                    key = parts[4];
-                    value = parts[6];
-                    set(key, value);
-                    out.write("+OK\r\n".getBytes());
-                    break;
-                case "GET":
-                    key = parts[4];
-                    value = get(key);
-                    if (value != null) {
-                        String response = "$" + value.length() + "\r\n" + value + "\r\n";
-                        out.write(response.getBytes());
-                    } else {
-                        out.write("$-1\r\n".getBytes());
-                    }
-                    break;
-                default:
-                    out.write("-ERR unknown command\r\n".getBytes());
-                    break;
+                String key;
+                String value;
+                switch (command.toUpperCase()) {
+                    case "SET":
+                        key = (String) decodedArray[1];
+                        value = (String) decodedArray[2];
+                        set(key, value);
+                        out.write("+OK\r\n".getBytes());
+                        break;
+                    case "GET":
+                        key = (String) decodedArray[1];
+                        value = get(key);
+                        if (value != null) {
+                            String response = "$" + value.length() + "\r\n" + value + "\r\n";
+                            out.write(response.getBytes());
+                        } else {
+                            out.write("$-1\r\n".getBytes());
+                        }
+                        break;
+                    case "PING":
+                        out.write(ping(decodedArray).getBytes());
+                        break;
+                    default:
+                        out.write("-ERR unknown command\r\n".getBytes());
+                        break;
+                }
             }
         } catch (IOException e) {
             e.printStackTrace();
@@ -91,5 +92,18 @@ public class RedisServer {
      */
     private String get(String key) {
         return dataStore.get(key);
+    }
+
+    /**
+     * Reacts to the ping command and outputs appropriately to validate the servers basic functionality
+     * @param parts The array of objects passed as a ping command
+     * @return PONG if only a PING was set, otherwise return the message passed after the PING
+     */
+    private String ping(Object[] parts) {
+        if (parts.length > 1) {
+            String message = (String) parts[1];
+            return "$" + message.length() + "\r\n" + message + "\r\n";
+        }
+        return "+PONG\r\n";
     }
 }
