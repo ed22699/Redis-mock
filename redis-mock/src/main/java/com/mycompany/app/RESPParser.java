@@ -55,12 +55,19 @@ public class RESPParser {
 
     /**
      * Takes a Java object (e.g., a String or an array of strings) and encodes it into the RESP format to be sent to the client.
-     * @param command An instruction from the client.
+     * @param data An instruction from the client.
      * @return A RESP formatted string representing the server's response.
      */
-    public static String encode(Object command) {
+    public static String encode(Object data) {
         StringBuilder sb = new StringBuilder();
-        if (command instanceof String[] cmdArray) {
+        if (data instanceof String) {
+            String s = (String) data;
+            if (s.equals("OK") || s.equals("PONG")) {
+                sb.append("+").append(s).append("\r\n");
+            } else {
+                sb.append("$").append(s.length()).append("\r\n").append(s).append("\r\n");
+            }
+        } else if (data instanceof String[] cmdArray) {
             sb.append("*").append(cmdArray.length).append("\r\n");
             for (String s : cmdArray) {
                 sb.append("$").append(s.length()).append("\r\n");
