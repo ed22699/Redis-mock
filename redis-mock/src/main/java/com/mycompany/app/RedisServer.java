@@ -1,18 +1,25 @@
 package com.mycompany.app;
 
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class RedisServer {
-
-    private final RedisCommandExecutor commandExecutor;
+    private final CommandExecutor commandExecutor;
 
     public RedisServer() {
-        this.commandExecutor = new RedisCommandExecutor();
+        AofPersistence aofPersistence = new AofPersistence("redis.aof");
+        this.commandExecutor = new CommandExecutor(new ConcurrentHashMap<>(), aofPersistence);
+        loadDataFromFile(aofPersistence);
+    }
+
+    private void loadDataFromFile(AofPersistence aofPersistence) {
+        List<Object[]> commands = aofPersistence.loadData();
+        for (Object[] command : commands) {
+            commandExecutor.execute(command);
+        }
     }
 
     public static void main(String[] args) {

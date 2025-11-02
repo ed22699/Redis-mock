@@ -45,7 +45,7 @@ public class RESPParser {
                 }
                 return array;
             default:
-                //This is a workaround for the fact that the inputstream is not being fully consumed
+                //This is a workaround for the fact that the input stream is not being fully consumed
                 if(firstByte == '\r' || firstByte == '\n' || firstByte == -1){
                     return decodeFromReader(reader);
                 }
@@ -60,19 +60,28 @@ public class RESPParser {
      */
     public static String encode(Object data) {
         StringBuilder sb = new StringBuilder();
-        if (data instanceof String) {
-            String s = (String) data;
-            if (s.equals("OK") || s.equals("PONG")) {
+        switch (data) {
+            case String s when s.equals("OK") || s.equals("PONG"):
                 sb.append("+").append(s).append("\r\n");
-            } else {
+                break;
+            case String s:
                 sb.append("$").append(s.length()).append("\r\n").append(s).append("\r\n");
-            }
-        } else if (data instanceof String[] cmdArray) {
-            sb.append("*").append(cmdArray.length).append("\r\n");
-            for (String s : cmdArray) {
-                sb.append("$").append(s.length()).append("\r\n");
-                sb.append(s).append("\r\n");
-            }
+                break;
+            case String[] cmdArray:
+                sb.append("*").append(cmdArray.length).append("\r\n");
+                for (String s : cmdArray) {
+                    sb.append("$").append(s.length()).append("\r\n");
+                    sb.append(s).append("\r\n");
+                }
+                break;
+            case Exception e:
+                sb.append("-").append(e.getMessage()).append("\r\n");
+                break;
+            case null:
+                sb.append("$-1\r\n");
+                break;
+            default:
+                break;
         }
         return sb.toString();
     }
